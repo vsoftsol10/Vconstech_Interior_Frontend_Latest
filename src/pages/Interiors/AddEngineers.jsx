@@ -7,6 +7,14 @@ import DeleteConfirmationModal from '../../components/AddSiteEngineer/DeleteConf
 import AddEngineerModal from '../../components/AddSiteEngineer/AddEngineerModal'
 import EditEngineerModal from '../../components/AddSiteEngineer/EditEngineerModal'
 
+// ✅ ADD THIS HELPER FUNCTION AT THE TOP
+const getImageUrl = (profileImage) => {
+  if (!profileImage) return null;
+  // If it's already a full URL, return as is
+  if (profileImage.startsWith('http')) return profileImage;
+  // Otherwise, prepend the backend URL
+  return `http://localhost:5000${profileImage}`;
+};
 
 // API functions
 const getAllEngineers = async () => {
@@ -44,8 +52,8 @@ const createEngineer = async (engineerData) => {
   formData.append('alternatePhone', engineerData.alternatePhone)
   formData.append('empId', engineerData.empId)
   formData.append('address', engineerData.address)
-  formData.append('username', engineerData.username) // ✅ ADDED
-  formData.append('password', engineerData.password) // ✅ ADDED
+  formData.append('username', engineerData.username)
+  formData.append('password', engineerData.password)
   if (engineerData.profileImage) {
     formData.append('profileImage', engineerData.profileImage)
   }
@@ -78,8 +86,8 @@ const updateEngineer = async (id, engineerData) => {
   formData.append('alternatePhone', engineerData.alternatePhone)
   formData.append('empId', engineerData.empId)
   formData.append('address', engineerData.address)
-  formData.append('username', engineerData.username) // ✅ ADDED
-  if (engineerData.password) { // ✅ Only send if provided
+  formData.append('username', engineerData.username)
+  if (engineerData.password) {
     formData.append('password', engineerData.password)
   }
   if (engineerData.profileImage) {
@@ -135,14 +143,11 @@ const AddEngineers = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Fetch engineers function
   const fetchEngineers = async () => {
-    console.log('Fetching engineers...')
     setIsLoading(true)
     
     const token = localStorage.getItem('token')
     if (!token) {
-      console.log('No token found, user not logged in')
       setEngineers([])
       setIsLoading(false)
       return
@@ -150,19 +155,15 @@ const AddEngineers = () => {
     
     try {
       const response = await getAllEngineers()
-      console.log('API Response:', response)
       
       if (response && response.success && response.engineers) {
-        console.log('Engineers data:', response.engineers)
         setEngineers(response.engineers)
       } else {
-        console.log('Response not successful, clearing engineers')
         setEngineers([])
       }
     } catch (error) {
       console.error('Error fetching engineers:', error)
       
-      // Only redirect if session expired
       if (error.error === 'Session expired. Please login again.' || 
           error.message === 'Session expired. Please login again.' ||
           error.error === 'Unauthorized' ||
@@ -171,7 +172,6 @@ const AddEngineers = () => {
         localStorage.removeItem('user')
         navigate('/login')
       } else {
-        console.log('Setting empty engineers array due to error')
         setEngineers([])
       }
     } finally {
@@ -183,7 +183,6 @@ const AddEngineers = () => {
     fetchEngineers()
   }, [])
 
-  // Filter engineers based on search
   const filteredEngineers = engineers.filter(engineer =>
     engineer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     engineer.empId.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -211,34 +210,25 @@ const AddEngineers = () => {
   }
 
   const handleAddEngineer = async (engineerData) => {
-  try {
-    setIsSubmitting(true);
-    
-    // ✅ LOG WHAT'S BEING PASSED
-    console.log('=== PARENT COMPONENT ===');
-    console.log('Submitting engineer data:', {
-      ...engineerData,
-      password: engineerData.password ? '***' : 'MISSING'
-    });
-    
-    const response = await createEngineer(engineerData);
-    
-    if (response.success) {
-      // Success handling
-      setShowAddModal(false);
-      fetchEngineers(); // Refresh list
-      toast.success('Engineer added successfully');
-      return true;
+    try {
+      setIsSubmitting(true)
+      const response = await createEngineer(engineerData)
+      
+      if (response.success) {
+        setShowAddModal(false)
+        await fetchEngineers()
+        alert('Engineer added successfully!')
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Add engineer error:', error)
+      alert(error.error || 'Failed to add engineer')
+      return false
+    } finally {
+      setIsSubmitting(false)
     }
-    return false;
-  } catch (error) {
-    console.error('❌ Add engineer error:', error);
-    toast.error(error.error || 'Failed to add engineer');
-    return false;
-  } finally {
-    setIsSubmitting(false);
   }
-};
 
   const handleUpdateEngineer = async (id, engineerData) => {
     setIsSubmitting(true)
@@ -275,7 +265,6 @@ const AddEngineers = () => {
 
       <div className="pt-25 pl-16 md:pl-64 pr-4 pb-8 min-h-screen">
         <div className="max-w-7xl mx-auto">
-          {/* Header Section */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
@@ -297,7 +286,6 @@ const AddEngineers = () => {
               </button>
             </div>
 
-            {/* Search Bar */}
             <div className="mt-4">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -314,7 +302,6 @@ const AddEngineers = () => {
             </div>
           </div>
 
-          {/* Loading State */}
           {isLoading && (
             <div className="bg-white rounded-lg shadow-md p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -322,7 +309,7 @@ const AddEngineers = () => {
             </div>
           )}
 
-          {/* Desktop Table View */}
+          {/* ✅ FIXED DESKTOP TABLE VIEW */}
           {!isLoading && (
             <div className="hidden lg:block bg-white rounded-lg shadow-md overflow-hidden">
               <div className="overflow-x-auto">
@@ -351,9 +338,18 @@ const AddEngineers = () => {
                       <tr key={engineer.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
                               {engineer.profileImage ? (
-                                <img src={engineer.profileImage} alt={engineer.name} className="h-10 w-10 rounded-full object-cover" />
+                                <img 
+                                  src={getImageUrl(engineer.profileImage)}
+                                  alt={engineer.name} 
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    console.error('Image failed to load:', engineer.profileImage);
+                                    e.target.style.display = 'none';
+                                    e.target.parentElement.innerHTML = `<span class="text-blue-600 font-semibold">${engineer.name.split(' ').map(n => n[0]).join('').toUpperCase()}</span>`;
+                                  }}
+                                />
                               ) : (
                                 <span className="text-blue-600 font-semibold">
                                   {engineer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
@@ -416,16 +412,25 @@ const AddEngineers = () => {
             </div>
           )}
 
-          {/* Mobile/Tablet Card View */}
+          {/* ✅ FIXED MOBILE CARD VIEW */}
           {!isLoading && (
             <div className="lg:hidden space-y-4">
               {filteredEngineers.map((engineer) => (
                 <div key={engineer.id} className="bg-white rounded-lg shadow-md p-4">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center">
-                      <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                      <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
                         {engineer.profileImage ? (
-                          <img src={engineer.profileImage} alt={engineer.name} className="h-12 w-12 rounded-full object-cover" />
+                          <img 
+                            src={getImageUrl(engineer.profileImage)}
+                            alt={engineer.name} 
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              console.error('Image failed to load:', engineer.profileImage);
+                              e.target.style.display = 'none';
+                              e.target.parentElement.innerHTML = `<span class="text-blue-600 font-semibold text-lg">${engineer.name.split(' ').map(n => n[0]).join('').toUpperCase()}</span>`;
+                            }}
+                          />
                         ) : (
                           <span className="text-blue-600 font-semibold text-lg">
                             {engineer.name.split(' ').map(n => n[0]).join('').toUpperCase()}
@@ -488,7 +493,6 @@ const AddEngineers = () => {
         </div>
       </div>
 
-      {/* Add Engineer Modal */}
       <AddEngineerModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -496,7 +500,6 @@ const AddEngineers = () => {
         isSubmitting={isSubmitting}
       />
 
-      {/* Edit Engineer Modal */}
       <EditEngineerModal
         isOpen={showEditModal}
         onClose={() => {
@@ -508,7 +511,6 @@ const AddEngineers = () => {
         engineer={selectedEngineer}
       />
 
-      {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={showDeleteModal}
         engineer={selectedEngineer}

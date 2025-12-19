@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { Calendar, IndianRupee, Eye, Edit, Trash2, ChevronDown, Percent, TrendingUp, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Calendar, IndianRupee, Eye, Edit, Trash2, ChevronDown, Percent, TrendingUp, AlertCircle, PieChart } from 'lucide-react';
 import { projectAPI } from '../../api/projectAPI';
 import { getUserRole } from '../../utils/auth';
+import costCalculationService from '../../api/costCalculationService';
 
 const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getStatusIcon, onStatusChange, onProgressUpdate }) => {
   const statusOptions = ['Planning', 'In Progress', 'Completed'];
@@ -11,6 +12,9 @@ const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getSta
   const [showProgressSlider, setShowProgressSlider] = useState(false);
   const [tempProgress, setTempProgress] = useState(project.progress || 0);
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [breakdown, setBreakdown] = useState(null);
+  const [loadingBreakdown, setLoadingBreakdown] = useState(false);
 
   const userRole = getUserRole();
   const isAdmin = userRole === 'Admin';
@@ -39,6 +43,26 @@ const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getSta
   const progressDiff = actualProgress - timeProgress;
   const isAhead = progressDiff > 10;
   const isBehind = progressDiff < -10;
+
+  // Load spending breakdown
+  const loadBreakdown = async () => {
+    if (breakdown) {
+      setShowBreakdown(!showBreakdown);
+      return;
+    }
+
+    setLoadingBreakdown(true);
+    try {
+      const data = await costCalculationService.getSpendingBreakdown(project.dbId);
+      setBreakdown(data);
+      setShowBreakdown(true);
+    } catch (error) {
+      console.error('Error loading breakdown:', error);
+      alert('Failed to load spending breakdown');
+    } finally {
+      setLoadingBreakdown(false);
+    }
+  };
 
   // Handle status change
   const handleStatusChange = async (newStatus) => {
@@ -82,7 +106,7 @@ const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getSta
     } catch (error) {
       console.error('Error updating progress:', error);
       alert(error.error || 'Failed to update progress. You may not have permission to update this project.');
-      setTempProgress(project.progress || 0); // Reset to original value
+      setTempProgress(project.progress || 0);
     } finally {
       setIsUpdatingProgress(false);
     }
@@ -90,13 +114,20 @@ const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getSta
 
   // Check if user can update this project's progress
   const canUpdateProgress = () => {
-    if (isAdmin) return true; // Admin can update any project
+    if (isAdmin) return true;
     if (isEngineer && project.assignedEngineerName) {
-      // Engineer can only update if assigned (we'll check on backend too)
-      return true; // Backend will enforce the actual check
+      return true;
     }
     return false;
   };
+
+  // Calculate budget utilization percentage
+  const budgetUtilization = project.budget > 0 
+    ? ((project.spent / project.budget) * 100).toFixed(1)
+    : 0;
+
+  const isOverBudget = parseFloat(budgetUtilization) > 100;
+  const isNearBudget = parseFloat(budgetUtilization) > 80 && parseFloat(budgetUtilization) <= 100;
 
   return (
     <div className="p-3 sm:p-4 lg:p-6 hover:bg-gray-50 transition-colors">
@@ -176,16 +207,88 @@ const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getSta
             <p className="font-medium text-gray-900 truncate">{project.startDate} to {project.endDate}</p>
           </div>
         </div>
+        
+        {/* Enhanced Budget Display */}
         <div className="flex items-start gap-2 text-xs sm:text-sm">
           <IndianRupee className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-          <div className="min-w-0">
-            <p className="text-gray-600">Budget</p>
-            <p className="font-medium text-gray-900 truncate">₹{(project.spent/1000).toFixed(0)}k/₹{(project.budget/1000).toFixed(0)}k</p>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-gray-600">Budget</p>
+              <button
+                onClick={loadBreakdown}
+                disabled={loadingBreakdown}
+                className="text-blue-600 hover:text-blue-700 transition-colors"
+                title="View spending breakdown"
+              >
+                <PieChart className="w-3 h-3" />
+              </button>
+            </div>
+            <p className={`font-medium truncate ${isOverBudget ? 'text-red-600' : isNearBudget ? 'text-yellow-600' : 'text-gray-900'}`}>
+              ₹{(project.spent/1000).toFixed(0)}k/₹{(project.budget/1000).toFixed(0)}k
+            </p>
+            <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  isOverBudget ? 'bg-red-500' : isNearBudget ? 'bg-yellow-500' : 'bg-green-500'
+                }`}
+                style={{ width: `${Math.min(budgetUtilization, 100)}%` }}
+              />
+            </div>
+            <p className={`text-xs mt-0.5 ${isOverBudget ? 'text-red-600' : isNearBudget ? 'text-yellow-600' : 'text-gray-500'}`}>
+              {budgetUtilization}% utilized
+            </p>
           </div>
         </div>
       </div>
 
-      {/* ✅ NEW: Progress Section with Update Control */}
+      {/* Spending Breakdown (Expandable) */}
+      {showBreakdown && breakdown && (
+        <div className="mb-3 sm:mb-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-xs sm:text-sm font-semibold text-gray-700 flex items-center gap-1">
+              <PieChart className="w-3 h-3 sm:w-4 sm:h-4" />
+              Spending Breakdown
+            </h4>
+            <button
+              onClick={() => setShowBreakdown(false)}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Hide
+            </button>
+          </div>
+          
+          <div className="space-y-2">
+            {breakdown.categories.map((cat, idx) => (
+              cat.amount > 0 && (
+                <div key={idx} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className={`w-2 h-2 rounded-full ${
+                      cat.name === 'Financial' ? 'bg-blue-500' :
+                      cat.name === 'Materials' ? 'bg-green-500' :
+                      cat.name === 'Labour' ? 'bg-yellow-500' :
+                      'bg-purple-500'
+                    }`} />
+                    <span className="text-gray-700">{cat.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">₹{(cat.amount/1000).toFixed(1)}k</span>
+                    <span className="text-gray-500 min-w-[3rem] text-right">{cat.percentage}%</span>
+                  </div>
+                </div>
+              )
+            ))}
+          </div>
+          
+          <div className="mt-2 pt-2 border-t border-purple-200">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="text-gray-700">Total Spent</span>
+              <span className="text-gray-900">₹{(breakdown.totalSpent/1000).toFixed(1)}k</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Progress Section */}
       <div className="mb-3 sm:mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs sm:text-sm font-medium text-gray-700 flex items-center gap-1">
@@ -226,7 +329,7 @@ const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getSta
           )}
         </div>
 
-        {/* ✅ Progress Update Slider */}
+        {/* Progress Update Slider */}
         {showProgressSlider && (
           <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
             <div className="flex items-center justify-between mb-2">

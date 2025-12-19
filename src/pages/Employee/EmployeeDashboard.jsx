@@ -7,13 +7,11 @@ import { materialRequestAPI } from '../../api/materialService';
 
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
   const [employeeName, setEmployeeName] = useState('Loading...');
-  const [assignedProjectsCount, setAssignedProjectsCount] = useState(0);
   const [assignedProjects, setAssignedProjects] = useState([]);
   const [materialRequests, setMaterialRequests] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [recentFiles, setRecentFiles] = useState([]); // ✅ NEW: Real files state
+  const [recentFiles, setRecentFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -26,17 +24,13 @@ const EmployeeDashboard = () => {
     day: 'numeric' 
   });
 
-  // ✅ NEW: Function to fetch files from assigned projects
   const fetchRecentFiles = async (projects, token) => {
     try {
-      console.log('📁 Fetching files for assigned projects:', projects.length);
-      
       if (projects.length === 0) {
         setRecentFiles([]);
         return;
       }
 
-      // Fetch files from all assigned projects
       const filePromises = projects.map(project =>
         fetch(`${API_BASE_URL}/projects/${project.id}/files`, {
           headers: {
@@ -49,62 +43,41 @@ const EmployeeDashboard = () => {
           projectName: project.name,
           files: data.files || []
         }))
-        .catch(err => {
-          console.error(`Error fetching files for project ${project.id}:`, err);
-          return { projectName: project.name, files: [] };
-        })
+        .catch(() => ({ projectName: project.name, files: [] }))
       );
 
       const projectFilesData = await Promise.all(filePromises);
       
-      // Combine all files and add project name
       const allFiles = projectFilesData.flatMap(({ projectName, files }) =>
-        files.map(file => ({
-          ...file,
-          projectName
-        }))
+        files.map(file => ({ ...file, projectName }))
       );
 
-      // Sort by upload date (most recent first) and take top 5
       const sortedFiles = allFiles
         .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
         .slice(0, 5);
 
-      console.log('✅ Recent files fetched:', sortedFiles.length);
       setRecentFiles(sortedFiles);
     } catch (error) {
-      console.error('❌ Error fetching recent files:', error);
+      console.error('Error fetching recent files:', error);
       setRecentFiles([]);
     }
   };
 
-  // ✅ Helper function to get file icon based on extension
   const getFileIcon = (fileName) => {
     if (!fileName) return '📎';
     const ext = fileName.split('.').pop()?.toLowerCase();
     const iconMap = {
-      pdf: '📄',
-      doc: '📝',
-      docx: '📝',
-      xls: '📊',
-      xlsx: '📊',
-      jpg: '🖼️',
-      jpeg: '🖼️',
-      png: '🖼️',
-      dwg: '📐',
-      dxf: '📐'
+      pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊',
+      jpg: '🖼️', jpeg: '🖼️', png: '🖼️', dwg: '📐', dxf: '📐'
     };
     return iconMap[ext] || '📎';
   };
 
-  // ✅ Helper function to get file type display
   const getFileType = (fileName) => {
     if (!fileName) return 'FILE';
-    const ext = fileName.split('.').pop()?.toUpperCase();
-    return ext || 'FILE';
+    return fileName.split('.').pop()?.toUpperCase() || 'FILE';
   };
 
-  // ✅ Helper function to format file size
   const formatFileSize = (bytes) => {
     if (!bytes) return 'N/A';
     if (bytes < 1024) return bytes + ' B';
@@ -112,26 +85,20 @@ const EmployeeDashboard = () => {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  // ✅ Function to handle file viewing/downloading
   const handleViewFile = async (file) => {
     try {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const token = localStorage.getItem('token');
       
-      let fileUrl;
-      if (file.fileUrl) {
-        const baseUrl = API_BASE_URL.replace('/api', '');
-        fileUrl = file.fileUrl.startsWith('http') 
-          ? file.fileUrl 
-          : `${baseUrl}${file.fileUrl}`;
-      } else {
-        throw new Error('File URL not found');
-      }
+      if (!file.fileUrl) throw new Error('File URL not found');
+      
+      const baseUrl = API_BASE_URL.replace('/api', '');
+      const fileUrl = file.fileUrl.startsWith('http') 
+        ? file.fileUrl 
+        : `${baseUrl}${file.fileUrl}`;
       
       const response = await fetch(fileUrl, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (!response.ok) {
@@ -148,131 +115,7 @@ const EmployeeDashboard = () => {
       alert('Failed to open file: ' + error.message);
     }
   };
-  
-  // Fetch all employee data
-  useEffect(() => {
-    const fetchEmployeeData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Check both possible token keys and sync them
-        let token = localStorage.getItem('token');
-        if (!token) {
-          token = localStorage.getItem('authToken');
-        }
-        
-        if (!token) {
-          console.error('No token found');
-          setError('Authentication required. Please login.');
-          return;
-        }
-        
-        // ✅ Sync tokens to ensure consistency
-        localStorage.setItem('token', token);
-        localStorage.setItem('authToken', token);
 
-        // 1. Fetch employee profile data
-        const profileResponse = await fetch(`${API_BASE_URL.replace('/api', '')}/api/profile`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!profileResponse.ok) {
-          throw new Error('Failed to fetch profile');
-        }
-
-        const profileData = await profileResponse.json();
-        console.log('✅ Profile data:', profileData);
-        
-        setEmployeeName(profileData.user.name || 'Employee');
-        const engineerId = profileData.user.id;
-
-        // 2. Fetch all projects and filter assigned ones
-        let myProjects = [];
-        try {
-          const projectsData = await projectAPI.getProjects();
-          console.log('✅ All projects:', projectsData);
-          
-          // Filter projects assigned to this engineer
-          myProjects = projectsData.projects.filter(project => 
-            project.assignedEngineer && 
-            project.assignedEngineer.id === engineerId
-          );
-          
-          console.log('✅ My assigned projects:', myProjects);
-          setAssignedProjects(myProjects);
-          setAssignedProjectsCount(myProjects.length);
-
-          // ✅ NEW: Fetch recent files from assigned projects
-          await fetchRecentFiles(myProjects, token);
-        } catch (err) {
-          console.error('❌ Error fetching projects:', err);
-          setAssignedProjects([]);
-          setAssignedProjectsCount(0);
-        }
-
-        // 3. Fetch material requests
-        try {
-          const requestsData = await materialRequestAPI.getMyRequests();
-          console.log('✅ Material requests:', requestsData);
-          
-          // Sort by date (most recent first) and take only the last 5
-          const sortedRequests = (requestsData.requests || [])
-            .filter(req => req.material && req.project)
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-            .slice(0, 5);
-          
-          setMaterialRequests(sortedRequests);
-          
-          // Generate notifications from material requests
-          const requestNotifications = sortedRequests
-            .filter(req => req.material && req.project)
-            .map(req => {
-              const timeAgo = getTimeAgo(new Date(req.createdAt));
-              const materialName = req.material?.name || 'Unknown Material';
-              
-              if (req.status === 'APPROVED' || req.status === 'approved') {
-                return {
-                  type: 'approval',
-                  message: `Material request for ${materialName} approved`,
-                  time: timeAgo
-                };
-              } else if (req.status === 'REJECTED' || req.status === 'rejected') {
-                return {
-                  type: 'rejection',
-                  message: `Material request for ${materialName} rejected - ${req.rejectionReason || 'See comments'}`,
-                  time: timeAgo
-                };
-              } else {
-                return {
-                  type: 'update',
-                  message: `Material request for ${materialName} is pending`,
-                  time: timeAgo
-                };
-              }
-            });
-          
-          setNotifications(requestNotifications);
-        } catch (err) {
-          console.error('❌ Error fetching material requests:', err);
-          setMaterialRequests([]);
-        }
-
-      } catch (error) {
-        console.error('❌ Error fetching employee data:', error);
-        setError('Failed to load dashboard data. Please try again.');
-        setEmployeeName('Employee');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEmployeeData();
-  }, []); 
-
-  // Helper function to calculate time ago
   const getTimeAgo = (date) => {
     const now = new Date();
     const diffMs = now - date;
@@ -285,20 +128,113 @@ const EmployeeDashboard = () => {
     if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
     return date.toLocaleDateString('en-IN');
   };
+  
+  useEffect(() => {
+    const fetchEmployeeData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        
+        if (!token) {
+          setError('Authentication required. Please login.');
+          return;
+        }
+        
+        localStorage.setItem('token', token);
+        localStorage.setItem('authToken', token);
 
-  // Calculate material request stats
+        const profileResponse = await fetch(`${API_BASE_URL.replace('/api', '')}/api/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!profileResponse.ok) throw new Error('Failed to fetch profile');
+
+        const profileData = await profileResponse.json();
+        setEmployeeName(profileData.user.name || 'Employee');
+        const engineerId = profileData.user.id;
+
+        let myProjects = [];
+        try {
+          const projectsData = await projectAPI.getProjects();
+          myProjects = projectsData.projects.filter(project => 
+            project.assignedEngineer?.id === engineerId
+          );
+          
+          setAssignedProjects(myProjects);
+          await fetchRecentFiles(myProjects, token);
+        } catch (err) {
+          console.error('Error fetching projects:', err);
+          setAssignedProjects([]);
+        }
+
+        try {
+          const requestsData = await materialRequestAPI.getMyRequests();
+          
+          const sortedRequests = (requestsData.requests || [])
+            .filter(req => req.material && req.project)
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 5);
+          
+          setMaterialRequests(sortedRequests);
+          
+          const requestNotifications = sortedRequests.map(req => {
+            const timeAgo = getTimeAgo(new Date(req.createdAt));
+            const materialName = req.material?.name || 'Unknown Material';
+            const status = req.status.toLowerCase();
+            
+            if (status === 'approved') {
+              return {
+                type: 'approval',
+                message: `Material request for ${materialName} approved`,
+                time: timeAgo
+              };
+            } else if (status === 'rejected') {
+              return {
+                type: 'rejection',
+                message: `Material request for ${materialName} rejected - ${req.rejectionReason || 'See comments'}`,
+                time: timeAgo
+              };
+            } else {
+              return {
+                type: 'update',
+                message: `Material request for ${materialName} is pending`,
+                time: timeAgo
+              };
+            }
+          });
+          
+          setNotifications(requestNotifications);
+        } catch (err) {
+          console.error('Error fetching material requests:', err);
+          setMaterialRequests([]);
+        }
+
+      } catch (error) {
+        console.error('Error fetching employee data:', error);
+        setError('Failed to load dashboard data. Please try again.');
+        setEmployeeName('Employee');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmployeeData();
+  }, []); 
+
   const validRequests = materialRequests.filter(r => r.material && r.project);
-  const approvedCount = validRequests.filter(r => r.status === 'APPROVED' || r.status === 'approved').length;
-  const pendingCount = validRequests.filter(r => r.status === 'PENDING' || r.status === 'pending').length;
-  const rejectedCount = validRequests.filter(r => r.status === 'REJECTED' || r.status === 'rejected').length;
+  const approvedCount = validRequests.filter(r => r.status.toLowerCase() === 'approved').length;
+  const pendingCount = validRequests.filter(r => r.status.toLowerCase() === 'pending').length;
+  const rejectedCount = validRequests.filter(r => r.status.toLowerCase() === 'rejected').length;
 
   const kpiData = [
     { 
       icon: FolderOpen, 
       label: 'Active Projects', 
-      value: loading ? '...' : assignedProjectsCount.toString(), 
+      value: loading ? '...' : assignedProjects.length.toString(), 
       color: 'bg-blue-500', 
-      trend: `${assignedProjectsCount} assigned` 
+      trend: `${assignedProjects.length} assigned` 
     },
     { 
       icon: AlertCircle, 
@@ -310,22 +246,17 @@ const EmployeeDashboard = () => {
   ];
 
   const getStatusColor = (status) => {
-    switch(status?.toLowerCase()) {
-      case 'active':
-      case 'ongoing': 
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-      case 'on hold': 
-        return 'bg-yellow-100 text-yellow-800';
-      case 'completed': 
-        return 'bg-blue-100 text-blue-800';
-      case 'approved': 
-        return 'bg-green-100 text-green-800';
-      case 'rejected': 
-        return 'bg-red-100 text-red-800';
-      default: 
-        return 'bg-gray-100 text-gray-800';
-    }
+    const statusLower = status?.toLowerCase();
+    const colorMap = {
+      'active': 'bg-green-100 text-green-800',
+      'ongoing': 'bg-green-100 text-green-800',
+      'pending': 'bg-yellow-100 text-yellow-800',
+      'on hold': 'bg-yellow-100 text-yellow-800',
+      'completed': 'bg-blue-100 text-blue-800',
+      'approved': 'bg-green-100 text-green-800',
+      'rejected': 'bg-red-100 text-red-800'
+    };
+    return colorMap[statusLower] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusDisplay = (status) => {
@@ -367,7 +298,6 @@ const EmployeeDashboard = () => {
     <div className="min-h-screen bg-gray-50">
       <EmployeeNavbar/>
       
-      {/* Top Bar */}
       <div className="mt-26">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -386,7 +316,7 @@ const EmployeeDashboard = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {kpiData.map((kpi, index) => (
             <div key={index} className="bg-white rounded-lg text-center shadow-sm p-4 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-start justify-center">
@@ -405,7 +335,7 @@ const EmployeeDashboard = () => {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - 2/3 width */}
+          {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
             {/* Project Progress */}
             <div className="bg-white rounded-lg shadow-sm p-6">
@@ -490,9 +420,7 @@ const EmployeeDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {materialRequests
-                        .filter(request => request.material && request.project)
-                        .map((request) => (
+                      {materialRequests.map((request) => (
                         <tr key={request.id} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-3 px-2 text-sm text-gray-900">
                             {request.material?.name || 'N/A'}
@@ -519,7 +447,7 @@ const EmployeeDashboard = () => {
               )}
             </div>
 
-            {/* ✅ UPDATED: Recent Files - Now fetching real data */}
+            {/* Recent Files */}
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-gray-900">Recent File Uploads</h2>
@@ -587,7 +515,7 @@ const EmployeeDashboard = () => {
             </div>
           </div>
 
-          {/* Right Column - 1/3 width */}
+          {/* Right Column */}
           <div className="space-y-6">
             {/* Notifications */}
             <div className="bg-white rounded-lg shadow-sm p-6">
