@@ -319,15 +319,7 @@ const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getSta
           />
         </div>
 
-        {/* Show comparison with time-based progress */}
-        <div className="flex items-center justify-between text-xs text-gray-600">
-          <span>Time-based: {timeProgress}%</span>
-          {Math.abs(progressDiff) > 5 && (
-            <span className={`font-medium ${isAhead ? 'text-green-600' : isBehind ? 'text-red-600' : 'text-gray-600'}`}>
-              {progressDiff > 0 ? '+' : ''}{progressDiff}%
-            </span>
-          )}
-        </div>
+
 
         {/* Progress Update Slider */}
         {showProgressSlider && (

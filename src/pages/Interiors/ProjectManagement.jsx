@@ -7,6 +7,7 @@ import ProjectCard from '../../components/ProjectManagement/ProjectCard';
 import ProjectFormModal from '../../components/ProjectManagement/ProjectFormModal';
 import ProjectDetailsModal from '../../components/ProjectManagement/ProjectDetailsModal';
 import { projectAPI } from '../../api/projectAPI';
+import costCalculationService from '../../api/costCalculationService';
 
 const ProjectManagement = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -73,55 +74,50 @@ const handleStatusChangeInline = async (projectId, newStatus) => {
     throw err;
   }
 };
-  const loadProjects = async () => {
+const loadProjects = async () => {
   try {
     setLoading(true);
     setError(null);
     
-    // ✅ Add timestamp to prevent caching
     console.log('🔄 Fetching projects at:', new Date().toISOString());
     
-    const data = await projectAPI.getProjects();
+    // ✅ Use the service that calculates actual spent
+    const enrichedProjects = await costCalculationService.getAllProjectsWithSpent();
     
-    console.log('📦 Received projects from API:', data.projects.length);
-    console.log('📋 Projects:', data.projects);
+    console.log('📦 Received enriched projects:', enrichedProjects.length);
     
-    // Transform backend data to match frontend format
-    const transformedProjects = data.projects.map(project => ({
-  id: project.projectId,
-  dbId: project.id,
-  name: project.name,
-  client: project.clientName,
-  type: project.projectType,
-  status: transformStatus(project.status),
-  progress: project.actualProgress || 0, // ✅ Use actualProgress from database
-  budget: project.budget || 0,
-  spent: calculateSpent(project),
-  startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
-  endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
-  location: project.location || '',
-  team: project.assignedEngineer ? [project.assignedEngineer.name] : [],
-  assignedEmployee: project.assignedEngineer ? project.assignedEngineer.id.toString() : '',
-  assignedEngineerName: project.assignedEngineer ? project.assignedEngineer.name : '',
-  assignedEngineerEmpId: project.assignedEngineer ? project.assignedEngineer.empId : '',
-  tasks: { 
-    total: project._count?.materialUsed || 0, 
-    completed: 0 
-  },
-  description: project.description || ''
-}));
+    // Transform data to match frontend format
+    const transformedProjects = enrichedProjects.map(project => ({
+      id: project.projectId,
+      dbId: project.id,
+      name: project.name,
+      client: project.clientName,
+      type: project.projectType,
+      status: transformStatus(project.status),
+      progress: project.actualProgress || 0,
+      budget: project.budget || 0,
+      spent: project.spent || 0, // ✅ Use calculated spent from service
+      spentBreakdown: project.spentBreakdown, // ✅ Include breakdown
+      startDate: project.startDate ? new Date(project.startDate).toISOString().split('T')[0] : '',
+      endDate: project.endDate ? new Date(project.endDate).toISOString().split('T')[0] : '',
+      location: project.location || '',
+      team: project.assignedEngineer ? [project.assignedEngineer.name] : [],
+      assignedEmployee: project.assignedEngineer ? project.assignedEngineer.id.toString() : '',
+      assignedEngineerName: project.assignedEngineer ? project.assignedEngineer.name : '',
+      assignedEngineerEmpId: project.assignedEngineer ? project.assignedEngineer.empId : '',
+      tasks: { 
+        total: project._count?.materialUsed || 0, 
+        completed: 0 
+      },
+      description: project.description || ''
+    }));
     
-    console.log('✅ Setting projects state with:', transformedProjects.length, 'projects');
+    console.log('✅ Setting projects with real calculated spent');
     setProjects(transformedProjects);
     
   } catch (err) {
     console.error('Failed to load projects:', err);
     setError(err.error || 'Failed to load projects');
-    
-    // if (err.status === 403 || err.error === 'Invalid or expired token') {
-    //   localStorage.removeItem('authToken');
-    //   window.location.href = '/project';
-    // }
   } finally {
     setLoading(false);
   }
@@ -151,14 +147,6 @@ const handleStatusChangeInline = async (projectId, newStatus) => {
   // ✅ Use actualProgress from database
   return project.actualProgress || 0;
 };
-
-  const calculateSpent = (project) => {
-    // This would come from finance records in a real implementation
-    if (project.status === 'COMPLETED') {
-      return project.budget || 0;
-    }
-    return Math.round((project.budget || 0) * 0.6); // 60% spent for ongoing
-  };
 
   const stats = {
     total: projects.length,
