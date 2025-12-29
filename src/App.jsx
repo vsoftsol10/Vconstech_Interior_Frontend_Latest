@@ -15,6 +15,8 @@ import EmployeeFileManagement from "./pages/Employee/EmployeeFileManagement";
 import EmployeeMaterialManagement from "./pages/Employee/EmployeeMaterialManagement";
 import LabourManagement from "./pages/Employee/LabourManagement";
 import AdminLabourManagemet from "./pages/Interiors/AdminLabourManagemet";
+import CreateUser from "./pages/SuperAdmin/CreateUser";
+import SuperLogin from "./pages/SuperAdmin/Superlogin";
 function App() {
 
   return (
@@ -34,8 +36,8 @@ function App() {
       <Route path="/employee/file-management" element={<EmployeeFileManagement/>} />
       <Route path="/employee/material-management" element={<EmployeeMaterialManagement/>} />
       <Route path="/employee/labour-management" element={<LabourManagement/>} />
-
-
+      <Route path="/SuperAdmin/login" element={<SuperLogin/>} />
+      <Route path="/SuperAdmin/CreateUser" element={<CreateUser/>} />
     </Routes>
   );
 }
