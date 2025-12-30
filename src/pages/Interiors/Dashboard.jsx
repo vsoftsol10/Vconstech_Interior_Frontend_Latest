@@ -372,7 +372,7 @@ const Dashboard = () => {
               {[
                 { icon: Users, label: 'Active Engineers', value: dashboardData.engineers.length, color: 'blue' },
                 { icon: Package, label: 'Total Materials', value: dashboardData.materials.metrics?.totalMaterials || 0, color: 'green' },
-                { icon: DollarSign, label: 'Total Projects', value: dashboardData.financial.count || 0, color: 'purple' }
+                { icon: IndianRupee, label: 'Total Projects', value: dashboardData.financial.count || 0, color: 'purple' }
               ].map((stat, i) => (
                 <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3">

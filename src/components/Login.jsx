@@ -94,7 +94,7 @@ const Login = () => {
         </div>
         <div className="absolute inset-0 flex items-center justify-center p-12">
           <div className="max-w-md text-center">
-            <h1 className="text-5xl font-bold text-white mb-4">INTERIOR ERP</h1>
+            <h1 className="text-5xl font-bold text-white mb-4">Project Management</h1>
             <p className="text-xl text-gray-100 mb-8">Admin Login</p>
             <div className="w-20 h-1 mx-auto" style={{ backgroundColor: '#ffbe2a' }}></div>
             <p className="text-gray-100 mt-8 text-lg">
@@ -131,7 +131,7 @@ const Login = () => {
 
             <div>
               <h2 className="text-2xl font-bold uppercase text-center text-black mb-2">Welcome Back</h2>
-              <p className="text-gray-600 mb-8 uppercase text-center">sign in to your account</p>
+              <p className="text-gray-600 mb-8  text-center">Sign In to Your Account</p>
 
               <div>
                 <div className="mb-6">
