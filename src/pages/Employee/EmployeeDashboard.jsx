@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, AlertCircle, Plus, Upload, FolderOpen, X, ExternalLink } from 'lucide-react';
+import { FileText, AlertCircle, Plus, Upload, FolderOpen, X, ExternalLink, Percent } from 'lucide-react';
 import EmployeeNavbar from '../../components/Employee/EmployeeNavbar';
 import { projectAPI } from '../../api/projectAPI';
 import { materialRequestAPI } from '../../api/materialService';
@@ -14,7 +14,10 @@ const EmployeeDashboard = () => {
   const [recentFiles, setRecentFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
+const [showProgressSlider, setShowProgressSlider] = useState({});
+const [tempProgress, setTempProgress] = useState({});
+const [isUpdatingProgress, setIsUpdatingProgress] = useState({});
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   
   const currentDate = new Date().toLocaleDateString('en-IN', { 
@@ -128,97 +131,146 @@ const EmployeeDashboard = () => {
     if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
     return date.toLocaleDateString('en-IN');
   };
+
+  // Progress Update Functions
+const handleProgressUpdate = async (projectId) => {
+  const newProgress = tempProgress[projectId];
+  const currentProgress = assignedProjects.find(p => p.id === projectId)?.progress || 0;
+  
+  if (newProgress === currentProgress) {
+    setShowProgressSlider({ ...showProgressSlider, [projectId]: false });
+    return;
+  }
+
+  setIsUpdatingProgress({ ...isUpdatingProgress, [projectId]: true });
+  try {
+    // Use projectId directly - it's already the database ID
+    await projectAPI.updateProjectProgress(projectId, newProgress);
+    
+    // Update local state immediately for better UX
+    setAssignedProjects(prev => 
+      prev.map(p => p.id === projectId ? { ...p, progress: newProgress } : p)
+    );
+    
+    setShowProgressSlider({ ...showProgressSlider, [projectId]: false });
+    alert(`Progress updated to ${newProgress}%`);
+  } catch (error) {
+    console.error('Error updating progress:', error);
+    alert(error.error || 'Failed to update progress. Please try again.');
+  } finally {
+    setIsUpdatingProgress({ ...isUpdatingProgress, [projectId]: false });
+  }
+};
+
+const openProgressSlider = (projectId, currentProgress) => {
+  setTempProgress({ ...tempProgress, [projectId]: currentProgress });
+  setShowProgressSlider({ ...showProgressSlider, [projectId]: true });
+};
+
+const closeProgressSlider = (projectId) => {
+  setShowProgressSlider({ ...showProgressSlider, [projectId]: false });
+};
   
   useEffect(() => {
     const fetchEmployeeData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  try {
+    setLoading(true);
+    setError(null);
+    
+    const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+    
+    if (!token) {
+      setError('Authentication required. Please login.');
+      return;
+    }
+    
+    localStorage.setItem('token', token);
+    localStorage.setItem('authToken', token);
+
+    const profileResponse = await fetch(`${API_BASE_URL.replace('/api', '')}/api/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!profileResponse.ok) throw new Error('Failed to fetch profile');
+
+    const profileData = await profileResponse.json();
+    setEmployeeName(profileData.user.name || 'Employee');
+    const engineerId = profileData.user.id;
+
+    let myProjects = [];
+    try {
+      const projectsData = await projectAPI.getProjects();
+      console.log('🔍 Full projects data:', projectsData); // Debug log
+      
+      myProjects = projectsData.projects
+        .filter(project => project.assignedEngineer?.id === engineerId)
+        .map(project => ({
+          ...project,
+          // ✅ Ensure progress is properly mapped
+          progress: project.actualProgress ?? project.progress ?? 0,
+          dbId: project.id // This is the database ID for API calls
+        }));
+      
+      console.log('🔍 Filtered projects for engineer:', myProjects); // Debug log
+      
+      setAssignedProjects(myProjects);
+      await fetchRecentFiles(myProjects, token);
+    } catch (err) {
+      console.error('Error fetching projects:', err);
+      setAssignedProjects([]);
+    }
+
+    // ... rest of your material requests code stays the same
+    try {
+      const requestsData = await materialRequestAPI.getMyRequests();
+      
+      const sortedRequests = (requestsData.requests || [])
+        .filter(req => req.material && req.project)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 5);
+      
+      setMaterialRequests(sortedRequests);
+      
+      const requestNotifications = sortedRequests.map(req => {
+        const timeAgo = getTimeAgo(new Date(req.createdAt));
+        const materialName = req.material?.name || 'Unknown Material';
+        const status = req.status.toLowerCase();
         
-        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-        
-        if (!token) {
-          setError('Authentication required. Please login.');
-          return;
+        if (status === 'approved') {
+          return {
+            type: 'approval',
+            message: `Material request for ${materialName} approved`,
+            time: timeAgo
+          };
+        } else if (status === 'rejected') {
+          return {
+            type: 'rejection',
+            message: `Material request for ${materialName} rejected - ${req.rejectionReason || 'See comments'}`,
+            time: timeAgo
+          };
+        } else {
+          return {
+            type: 'update',
+            message: `Material request for ${materialName} is pending`,
+            time: timeAgo
+          };
         }
-        
-        localStorage.setItem('token', token);
-        localStorage.setItem('authToken', token);
+      });
+      
+      setNotifications(requestNotifications);
+    } catch (err) {
+      console.error('Error fetching material requests:', err);
+      setMaterialRequests([]);
+    }
 
-        const profileResponse = await fetch(`${API_BASE_URL.replace('/api', '')}/api/profile`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!profileResponse.ok) throw new Error('Failed to fetch profile');
-
-        const profileData = await profileResponse.json();
-        setEmployeeName(profileData.user.name || 'Employee');
-        const engineerId = profileData.user.id;
-
-        let myProjects = [];
-        try {
-          const projectsData = await projectAPI.getProjects();
-          myProjects = projectsData.projects.filter(project => 
-            project.assignedEngineer?.id === engineerId
-          );
-          
-          setAssignedProjects(myProjects);
-          await fetchRecentFiles(myProjects, token);
-        } catch (err) {
-          console.error('Error fetching projects:', err);
-          setAssignedProjects([]);
-        }
-
-        try {
-          const requestsData = await materialRequestAPI.getMyRequests();
-          
-          const sortedRequests = (requestsData.requests || [])
-            .filter(req => req.material && req.project)
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-            .slice(0, 5);
-          
-          setMaterialRequests(sortedRequests);
-          
-          const requestNotifications = sortedRequests.map(req => {
-            const timeAgo = getTimeAgo(new Date(req.createdAt));
-            const materialName = req.material?.name || 'Unknown Material';
-            const status = req.status.toLowerCase();
-            
-            if (status === 'approved') {
-              return {
-                type: 'approval',
-                message: `Material request for ${materialName} approved`,
-                time: timeAgo
-              };
-            } else if (status === 'rejected') {
-              return {
-                type: 'rejection',
-                message: `Material request for ${materialName} rejected - ${req.rejectionReason || 'See comments'}`,
-                time: timeAgo
-              };
-            } else {
-              return {
-                type: 'update',
-                message: `Material request for ${materialName} is pending`,
-                time: timeAgo
-              };
-            }
-          });
-          
-          setNotifications(requestNotifications);
-        } catch (err) {
-          console.error('Error fetching material requests:', err);
-          setMaterialRequests([]);
-        }
-
-      } catch (error) {
-        console.error('Error fetching employee data:', error);
-        setError('Failed to load dashboard data. Please try again.');
-        setEmployeeName('Employee');
-      } finally {
-        setLoading(false);
-      }
-    };
+  } catch (error) {
+    console.error('Error fetching employee data:', error);
+    setError('Failed to load dashboard data. Please try again.');
+    setEmployeeName('Employee');
+  } finally {
+    setLoading(false);
+  }
+};
 
     fetchEmployeeData();
   }, []); 
@@ -333,6 +385,25 @@ const EmployeeDashboard = () => {
           ))}
         </div>
 
+        {assignedProjects.length > 0 && (
+  <>
+    {console.log('📊 Projects being rendered:', assignedProjects.map(p => ({
+      id: p.id,
+      name: p.name,
+      progress: p.progress,
+      actualProgress: p.actualProgress
+    })))}
+    
+    <div className="space-y-4">
+      {assignedProjects.map((project) => (
+        <div key={project.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+          {/* Your existing project card JSX */}
+        </div>
+      ))}
+    </div>
+  </>
+)}
+
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column */}
@@ -341,7 +412,7 @@ const EmployeeDashboard = () => {
             <div className="bg-white rounded-lg shadow-sm p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-gray-900">My Assigned Projects</h2>
-                <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button>
+                {/* <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button> */}
               </div>
               
               {loading ? (
@@ -382,6 +453,76 @@ const EmployeeDashboard = () => {
                           Budget: ₹{parseFloat(project.budget).toLocaleString('en-IN')}
                         </div>
                       )}
+
+                      {/* Progress Section - ADD THIS */}
+<div className= " mt-5 mb-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+  <div className="flex items-center justify-between mb-2">
+    <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
+      <Percent className="w-4 h-4" />
+      Project Progress
+    </span>
+    <div className="flex items-center gap-2">
+      <span className="text-base font-bold text-blue-600">{project.progress || 0}%</span>
+      {!showProgressSlider[project.id] && (
+        <button
+          onClick={() => openProgressSlider(project.id, project.progress || 0)}
+          className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+        >
+          Update
+        </button>
+      )}
+    </div>
+  </div>
+  
+  {/* Progress Bar */}
+  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+    <div
+      className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-300"
+      style={{ width: `${project.progress || 0}%` }}
+    />
+  </div>
+
+  {/* Progress Update Slider */}
+  {showProgressSlider[project.id] && (
+    <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs font-medium text-gray-700">
+          Update Progress: {tempProgress[project.id]}%
+        </label>
+        <div className="flex gap-2">
+          <button
+            onClick={() => closeProgressSlider(project.id)}
+            className="text-xs px-2 py-1 text-gray-600 hover:bg-gray-100 rounded"
+            disabled={isUpdatingProgress[project.id]}
+          >
+            Cancel
+          </button>
+         <button
+  onClick={() => handleProgressUpdate(project.id)}  // ✅ Fixed - only pass project.id
+  disabled={isUpdatingProgress[project.id] || tempProgress[project.id] === project.progress}
+  className="text-xs px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+>
+  {isUpdatingProgress[project.id] ? 'Saving...' : 'Save'}
+</button>
+        </div>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max="100"
+        value={tempProgress[project.id]}
+        onChange={(e) => setTempProgress({ ...tempProgress, [project.id]: parseInt(e.target.value) })}
+        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        disabled={isUpdatingProgress[project.id]}
+      />
+      <div className="flex justify-between text-xs text-gray-500 mt-1">
+        <span>0%</span>
+        <span>50%</span>
+        <span>100%</span>
+      </div>
+    </div>
+  )}
+</div>
                     </div>
                   ))}
                 </div>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, IndianRupee, Eye, Edit, Trash2, ChevronDown, Percent, TrendingUp, AlertCircle, PieChart } from 'lucide-react';
+import { FileDown } from 'lucide-react';
 import { projectAPI } from '../../api/projectAPI';
 import { getUserRole } from '../../utils/auth';
 import costCalculationService from '../../api/costCalculationService';
 
-const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getStatusIcon, onStatusChange, onProgressUpdate }) => {
+const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getStatusIcon, onStatusChange, onProgressUpdate, onDownloadReport  }) => {
   const statusOptions = ['Planning', 'In Progress', 'Completed'];
   
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -132,10 +133,12 @@ const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getSta
   return (
     <div className="p-3 sm:p-4 lg:p-6 hover:bg-gray-50 transition-colors">
       <div className="flex items-start justify-between mb-3 sm:mb-4">
+        
         <div className="flex-1 min-w-0">
+          
           <div className="flex flex-wrap items-center gap-2 mb-2">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{project.name}</h3>
             
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{project.name}</h3>
             {/* Status Dropdown */}
             <div className="relative">
               <button
@@ -178,19 +181,13 @@ const ProjectCard = ({ project, onView, onEdit, onDelete, getStatusColor, getSta
               {project.type}
             </span>
 
-            {/* Progress Status Badge */}
-            {isAhead && (
-              <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />
-                <span className="hidden sm:inline">Ahead</span>
-              </span>
-            )}
-            {isBehind && (
-              <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                <span className="hidden sm:inline">Behind</span>
-              </span>
-            )}
+            <button 
+  onClick={() => onDownloadReport(project)}
+  className="flex items-center gap-1 px-3 py-1.5 text-xs sm:text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+>
+  <FileDown className="w-3 h-3 sm:w-4 sm:h-4" />
+  <span className=" xs:inline">Report</span>
+</button>
           </div>
           <p className="text-xs sm:text-sm text-gray-600">{project.location} • {project.id}</p>
           {project.assignedEngineerName && (

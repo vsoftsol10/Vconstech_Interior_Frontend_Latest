@@ -40,43 +40,63 @@ const handleResponse = async (response) => {
 export const projectAPI = {
   // Get all projects
   getProjects: async (filters = {}) => {
-    const token = getAuthToken();
-    const queryParams = new URLSearchParams();
-    
-    if (filters.status) queryParams.append('status', filters.status);
-    if (filters.projectType) queryParams.append('projectType', filters.projectType);
-    
-    const url = `${API_BASE_URL}/projects${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-    
-    console.log('🌐 Fetching from:', url);
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    const result = await handleResponse(response);
-    console.log('📥 API Response:', result);
-    return result;
-  },
-
+  const token = getAuthToken();
+  const queryParams = new URLSearchParams();
+  
+  if (filters.status) queryParams.append('status', filters.status);
+  if (filters.projectType) queryParams.append('projectType', filters.projectType);
+  
+  const url = `${API_BASE_URL}/projects${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+  
+  console.log('🌐 Fetching from:', url);
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  const result = await handleResponse(response);
+  console.log('📥 API Response:', result);
+  
+  // ✅ Map actualProgress to progress for ALL projects
+  if (result.projects && Array.isArray(result.projects)) {
+    result.projects = result.projects.map(project => ({
+      ...project,
+      progress: project.actualProgress ?? project.progress ?? 0,
+      dbId: project.id // Keep the database ID for API calls
+    }));
+  }
+  
+  return result;
+},
   // Get single project
   getProjectById: async (id) => {
-    const token = getAuthToken();
-    
-    const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    return handleResponse(response);
-  },
+  const token = getAuthToken();
+  
+  const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  const result = await handleResponse(response);
+  
+  // ✅ Map actualProgress to progress for single project
+  if (result.project) {
+    result.project = {
+      ...result.project,
+      progress: result.project.actualProgress ?? result.project.progress ?? 0,
+      dbId: result.project.id
+    };
+  }
+  
+  return result;
+},
 
   // Create project
   createProject: async (projectData, file = null) => {

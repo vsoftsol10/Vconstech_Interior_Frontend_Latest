@@ -269,16 +269,7 @@ const Dashboard = () => {
                             <div className="flex items-center gap-3 mb-2">
                               <div className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">{project.projectId}</div>
                               <div className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">{project.projectType}</div>
-                              {project.progressStatus === 'ahead' && (
-                                <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold flex items-center gap-1">
-                                  <TrendingUp size={12} />Ahead of Schedule
-                                </div>
-                              )}
-                              {project.progressStatus === 'behind' && (
-                                <div className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold flex items-center gap-1">
-                                  <AlertCircle size={12} />Behind Schedule
-                                </div>
-                              )}
+                              
                             </div>
                             <h3 className="text-2xl font-bold text-gray-800 mb-2">{project.name}</h3>
                             {project.description && <p className="text-gray-600 text-sm line-clamp-2">{project.description}</p>}

@@ -39,7 +39,7 @@ const EmployeeNavbar = () => {
             <div className="flex items-center space-x-4">
               <div className="flex-shrink-0 flex items-center gap-2 sm:gap-3">
                 <h1 className="text-lg sm:text-2xl lg:text-3xl uppercase font-black text-slate-900 tracking-tight">
-                  Engineer
+                  Site Engineer
                 </h1>
               </div>
             </div>
@@ -48,7 +48,7 @@ const EmployeeNavbar = () => {
             <div className="hidden md:flex items-center space-x-1">
               <Link
                 to="/employee-dashboard"
-                className={`ml-2 px-2 lg:px-4 py-2 rounded-lg font-semibold text-xs lg:text-sm uppercase tracking-wide transition-colors duration-200 ${
+                className={`ml-2 px-2 lg:px-4 py-2 rounded-lg font-semibold text-xs lg:text-sm tracking-wide transition-colors duration-200 ${
                   location.pathname === '/employee-dashboard'
                     ? 'bg-slate-900 text-white'
                     : 'text-slate-800 hover:bg-slate-900/10'
@@ -58,7 +58,7 @@ const EmployeeNavbar = () => {
               </Link>
               <Link
                 to="/employee/material-management"
-                className={`px-3 lg:px-4 py-2 rounded-lg font-semibold text-xs lg:text-sm uppercase tracking-wide transition-colors duration-200 ${
+                className={`px-3 lg:px-4 py-2 rounded-lg font-semibold text-xs lg:text-sm tracking-wide transition-colors duration-200 ${
                   location.pathname === '/employee/material-management'
                     ? 'bg-slate-900 text-white'
                     : 'text-slate-800 hover:bg-slate-900/10'
@@ -68,7 +68,7 @@ const EmployeeNavbar = () => {
               </Link>
               <Link
                 to="/employee/file-management"
-                className={`px-3 lg:px-4 py-2 rounded-lg font-semibold text-xs lg:text-sm uppercase tracking-wide transition-colors duration-200 ${
+                className={`px-3 lg:px-4 py-2 rounded-lg font-semibold text-xs lg:text-sm tracking-wide transition-colors duration-200 ${
                   location.pathname === '/employee/file-management'
                     ? 'bg-slate-900 text-white'
                     : 'text-slate-800 hover:bg-slate-900/10'
@@ -78,7 +78,7 @@ const EmployeeNavbar = () => {
               </Link>
               <Link
                 to="/employee/labour-management"
-                className={`px-3 lg:px-4 py-2 rounded-lg font-semibold text-xs lg:text-sm uppercase tracking-wide transition-colors duration-200 ${
+                className={`px-3 lg:px-4 py-2 rounded-lg font-semibold text-xs lg:text-sm tracking-wide transition-colors duration-200 ${
                   location.pathname === '/employee/labour-management'
                     ? 'bg-slate-900 text-white'
                     : 'text-slate-800 hover:bg-slate-900/10'

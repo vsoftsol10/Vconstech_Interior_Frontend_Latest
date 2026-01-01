@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Lock, AlertCircle } from 'lucide-react';
-import loginBack from "../../assets/login-BCK-2.mp4"
+import adminLogin from "../../assets/admin login.png";
 import { useNavigate } from 'react-router-dom';
 import { loginEngineer } from '../../api/engineerService';
 import { handleLoginSuccess } from '../../utils/auth';
@@ -46,28 +46,14 @@ export default function EmployeeLogin() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Video Background Section */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-amber-900/70 via-orange-800/60 to-amber-950/50 overflow-hidden">
-        {/* Video Background */}
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover opacity-40"
-        >
-          <source src={loginBack} type="video/mp4" />
-        </video>
-        
-        {/* Content Overlay */}
-        <div className="relative z-10 flex flex-col justify-center items-center text-white p-12 w-full">
-          <h1 className="text-6xl font-bold mb-6 tracking-wider uppercase">Site-Engineer</h1>
-          <div className="w-16 h-1 bg-amber-400 mb-6"></div>
-          <h2 className="text-2xl font-light mb-4">Login Portal</h2>
-          <p className="text-center text-lg font-light max-w-md">
-            Access your dashboard to manage project tasks, materials, files seamlessly through our ERP system.
-          </p>
-        </div>
-      </div>
+        <div className="hidden lg:flex lg:w-1/2 relative bg-yellow-400 overflow-hidden">
+               <img
+          src={adminLogin}
+          alt="Admin Login Background"
+          className="w-full h-full   object-cover object-center"
+        />
+              </div>
+
 
       {/* Right Side - Login Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
