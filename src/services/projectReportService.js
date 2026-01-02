@@ -553,7 +553,6 @@ const projectReportService = {
             <th>Contractor</th>
             <th>Work Type</th>
             <th>Contract Amount</th>
-            <th>Paid Amount</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -563,7 +562,6 @@ const projectReportService = {
               <td>${con.contractorName || 'N/A'}</td>
               <td>${con.workStatus || 'N/A'}</td>
               <td>${formatCurrency(con.contractAmount || 0)}</td>
-              <td>${formatCurrency(con.paidAmount || 0)}</td>
               <td><span class="status-badge">${con.workStatus || 'N/A'}</span></td>
             </tr>
           `).join('')}
