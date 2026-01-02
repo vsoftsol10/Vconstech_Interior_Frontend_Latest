@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, AlertCircle, Plus, Upload, FolderOpen, X, ExternalLink, Percent } from 'lucide-react';
+import { FileText, AlertCircle, Plus, Upload, FolderOpen, X, ExternalLink, Percent, FileDown } from 'lucide-react';
 import EmployeeNavbar from '../../components/Employee/EmployeeNavbar';
 import { projectAPI } from '../../api/projectAPI';
 import { materialRequestAPI } from '../../api/materialService';
+import costCalculationService from '../../api/costCalculationService';
+import projectReportService from '../../services/projectReportService';
 
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
@@ -171,6 +173,29 @@ const closeProgressSlider = (projectId) => {
   setShowProgressSlider({ ...showProgressSlider, [projectId]: false });
 };
   
+// Report Download Handler
+const handleDownloadReport = async (project) => {
+  try {
+    console.log('📊 Project data being sent to report:', {
+      name: project.name,
+      id: project.id,
+      dbId: project.dbId,
+      clientName: project.clientName,
+      projectType: project.projectType,
+      assignedEngineerName: project.assignedEngineerName,
+      budget: project.budget,
+      spent: project.spent
+    });
+    
+    const html = await projectReportService.generateReport(project);
+    projectReportService.downloadReport(html, project.name);
+    
+    console.log('✅ Report downloaded successfully');
+  } catch (error) {
+    console.error('❌ Error generating report:', error);
+    alert(`Failed to generate report: ${error.message}`);
+  }
+};
   useEffect(() => {
     const fetchEmployeeData = async () => {
   try {
@@ -394,13 +419,13 @@ const closeProgressSlider = (projectId) => {
       actualProgress: p.actualProgress
     })))}
     
-    <div className="space-y-4">
-      {assignedProjects.map((project) => (
-        <div key={project.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+    {/* <div className="space-y-4"> */}
+      {/* {assignedProjects.map((project) => ( */}
+      {/* <div key={project.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"> */}
           {/* Your existing project card JSX */}
-        </div>
-      ))}
-    </div>
+        {/* </div> */}
+      {/* ))} */}
+    {/* </div> */}
   </>
 )}
 
@@ -423,15 +448,25 @@ const closeProgressSlider = (projectId) => {
                 <div className="space-y-4">
                   {assignedProjects.map((project) => (
                     <div key={project.id} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{project.name}</h3>
-                          <p className="text-sm text-gray-600">{project.clientName}</p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                          {getStatusDisplay(project.status)}
-                        </span>
-                      </div>
+                   <div className="flex justify-between items-start mb-2">
+  <div className="flex-1">
+    <h3 className="font-semibold text-gray-900">{project.name}</h3>
+    <p className="text-sm text-gray-600">{project.clientName}</p>
+  </div>
+  <div className="flex items-center gap-2 flex-shrink-0">
+    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+      {getStatusDisplay(project.status)}
+    </span>
+    <button 
+      onClick={() => handleDownloadReport(project)}
+      className="flex items-center gap-1 px-3 py-1.5 text-xs text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+      title="Download Project Report"
+    >
+      <FileDown className="w-4 h-4" />
+      <span className="hidden sm:inline">Report</span>
+    </button>
+  </div>
+</div>
                       <div className="grid grid-cols-3 gap-4 text-sm mb-3">
                         <div>
                           <p className="text-gray-600">Type</p>
